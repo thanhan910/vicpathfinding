@@ -152,35 +152,111 @@ def astar(start, goal):
                 frontier.append((cost + road_length + heuristic_cost, cost + road_length, neighbor_point, path + [road_ufi]))
         frontier.sort(key=lambda x: x[0])
 
+def find_nearest_road(lon, lat, limit=1):
+    """
+    For a given point, for each road, find the nearest point on the road, and return the road with the shortest distance between that nearest point and the given point.
+    """
+    sql = f"""
+    SELECT 
+        ufi,
+        direction_code,
+        ST_X(ST_ClosestPoint(geom::geometry, ST_SetSRID(ST_MakePoint({lon}, {lat}), 7844))) AS closest_point_x, 
+        ST_Y(ST_ClosestPoint(geom::geometry, ST_SetSRID(ST_MakePoint({lon}, {lat}), 7844))) AS closest_point_y, 
+        from_ufi,
+        to_ufi
+    FROM vmtrans.tr_road_all
+    WHERE direction_code IS NOT NULL
+    ORDER BY ST_Distance(ST_ClosestPoint(geom::geometry, ST_SetSRID(ST_MakePoint({lon}, {lat}), 7844)), ST_SetSRID(ST_MakePoint({lon}, {lat}), 7844))
+    LIMIT {limit};
+    """
+    cursor.execute(sql)
+    return cursor.fetchall()
 
-# Pick a random start and goal
-distance = 0
-while distance <= 400000:
-    start = np.random.choice(list(points_coords.keys()))
-    goal = np.random.choice(list(points_coords.keys()))
-    distance = heuristic(start, goal)
-start, goal, heuristic(start, goal), points_coords[start], points_coords[goal]
+def search_path(lon1, lat1, lon2, lat2):
+    start_road_info = find_nearest_road(lon1, lat1)[0]
+    goal_road_info = find_nearest_road(lon2, lat2)[0]
+    start_road_ufi, start_road_direction, start_road_px, start_road_py, start_from_ufi, start_to_ufi = start_road_info
+    goal_road_ufi, goal_road_direction, goal_road_px, goal_road_py, goal_from_ufi, goal_to_ufi = goal_road_info
 
+    if start_road_ufi == goal_road_ufi:
+        return [start_road_ufi], 0, start_road_info, goal_road_info
+    
+    special_neighbors : dict[int, list] = {}
 
-path, cost = astar(start, goal)
-# 3m
+    points_coords[0] = (start_road_px, start_road_py)
+    points_coords[1] = (goal_road_px, goal_road_py)
 
+    start_from_ufi_distance = geodesic((start_road_py, start_road_px), (points_coords[start_from_ufi][1], points_coords[start_from_ufi][0])).meters
+    start_to_ufi_distance = geodesic((start_road_py, start_road_px), (points_coords[start_to_ufi][1], points_coords[start_to_ufi][0])).meters
+    goal_from_ufi_distance = geodesic((goal_road_py, goal_road_px), (points_coords[goal_from_ufi][1], points_coords[goal_from_ufi][0])).meters
+    goal_to_ufi_distance = geodesic((goal_road_py, goal_road_px), (points_coords[goal_to_ufi][1], points_coords[goal_to_ufi][0])).meters
 
-sql = f"""
-SELECT ufi, ezi_road_name_label, direction_code, road_length_meters, geom
-FROM vmtrans.tr_road_all
-WHERE ufi IN ({','.join([str(int(ufi)) for ufi in path])});
-"""
-gdf = gpd.read_postgis(sql, con=engine)
-gdf['geometry'] = gdf['geom'].apply(lambda x: x.geoms[0])
-gdf.drop(columns=['geom'], inplace=True)
-gdf = gpd.GeoDataFrame(gdf, crs='EPSG:7844', geometry='geometry')
+    special_neighbors[start_from_ufi] = []
+    special_neighbors[start_to_ufi] = []
+    special_neighbors[goal_from_ufi] = []
+    special_neighbors[goal_to_ufi] = []
+    special_neighbors[0] = []
+    special_neighbors[1] = []
 
+    if start_road_direction == 'F' or start_road_direction == 'B':
+        special_neighbors[start_from_ufi].append((0, start_road_ufi, start_from_ufi_distance))
+        special_neighbors[0].append((start_to_ufi, start_road_ufi, start_to_ufi_distance))
+    if start_road_direction == 'R' or start_road_direction == 'B':
+        special_neighbors[start_to_ufi].append((0, start_road_ufi, start_to_ufi_distance))
+        special_neighbors[0].append((start_from_ufi, start_road_ufi, start_from_ufi_distance))
 
-# Plot the path
+    if goal_road_direction == 'F' or goal_road_direction == 'B':
+        special_neighbors[goal_from_ufi].append((1, goal_road_ufi, goal_from_ufi_distance))
+        special_neighbors[1].append((goal_to_ufi, goal_road_ufi, goal_to_ufi_distance))
+    if goal_road_direction == 'R' or goal_road_direction == 'B':
+        special_neighbors[goal_to_ufi].append((1, goal_road_ufi, goal_to_ufi_distance))
+        special_neighbors[1].append((goal_from_ufi, goal_road_ufi, goal_from_ufi_distance))
 
-fig, ax = plt.subplots()
-gdf.plot(ax=ax, color='red')
-plt.show()
+    skip_neighbors = {
+        start_from_ufi: start_to_ufi,
+        start_to_ufi: start_from_ufi,
+        goal_from_ufi: goal_to_ufi,
+        goal_to_ufi: goal_from_ufi,
+    }
+    
+    frontier = []
+    visited = set()
+    path = []
+    frontier.append((0, 0, 0, []))
+    while frontier:
+        hcost, cost, current, path = frontier.pop(0)
+        if current == 1:
+            return path, cost, start_road_info, goal_road_info
+        if current in visited:
+            continue
+        visited.add(current)
+        neighbor_points = neighbors.get(current, []) + special_neighbors.get(current, [])
+        for neighbor_point, road_ufi, road_length in neighbor_points:
+            # frontier.append((cost + edge_cost(current, neighbor), neighbor, path + [neighbor]))
+            if current in skip_neighbors and skip_neighbors[current] == neighbor_point:
+                continue
+            if neighbor_point not in visited:
+                heuristic_cost = geodesic((goal_road_py, goal_road_px), (points_coords[neighbor_point][1], points_coords[neighbor_point][0])).meters
+                frontier.append((cost + road_length + heuristic_cost, cost + road_length, neighbor_point, path + [road_ufi]))
+        frontier.sort(key=lambda x: x[0])
 
-
+def get_path_info(path):
+    sql = f"""
+    SELECT ufi, ezi_road_name_label, direction_code, road_length_meters, geom
+    FROM vmtrans.tr_road_all
+    WHERE ufi IN ({','.join([str(int(ufi)) for ufi in path])});
+    """
+    gdf = gpd.read_postgis(sql, con=engine)
+    gdf['geometry'] = gdf['geom'].apply(lambda x: x.geoms[0])
+    gdf.drop(columns=['geom'], inplace=True)
+    gdf = gpd.GeoDataFrame(gdf, crs='EPSG:7844', geometry='geometry')
+    roads_info = gdf.set_index('ufi').to_dict(orient='index')
+    gdf = gpd.GeoDataFrame(
+    [{
+        'ufi': ufi,
+        'ezi_road_name_label': roads_info[ufi]['ezi_road_name_label'],
+        'direction_code': roads_info[ufi]['direction_code'],
+        'road_length_meters': roads_info[ufi]['road_length_meters'],
+        'geometry': roads_info[ufi]['geometry']
+    } for ufi in path], crs='EPSG:7844', geometry='geometry')
+    return gdf
