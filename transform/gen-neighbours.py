@@ -274,17 +274,10 @@ def get_path_info(path):
     } for ufi in path], crs='EPSG:7844', geometry='geometry')
     return gdf
 
-
+# Total time: 1m 30s
 
 db = client['vic_db']
 db.drop_collection('points_neighbours')
 collection = db['points_neighbours']
-point_data = []
-for point, neighbours in tqdm(neighbors.items()):
-    collection.insert_one({
-        '_id': point,
-        'point': points_coords[point],
-        'neighbours': neighbours
-    })
-
-# Total time: 1m 30s
+points_neighbours = [{'_id': point, 'point': points_coords[point], 'neighbours': neighbours} for point, neighbours in neighbors.items()]
+collection.insert_many(points_neighbours)
