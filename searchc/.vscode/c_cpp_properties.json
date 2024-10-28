@@ -1,0 +1,35 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/vcpkg/installed/x64-linux/include",                         // General include path for vcpkg libraries
+                "/vcpkg/installed/x64-linux/include/mongocxx/v_noabi",        // mongocxx include path
+                "/vcpkg/installed/x64-linux/include/bsoncxx/v_noabi"          // bsoncxx include path
+            ],
+            "defines": [
+                "MONGOCXX_STATIC",        // Define for static linking with mongocxx
+                "BSONCXX_STATIC",         // Define for static linking with bsoncxx
+                "MONGOC_STATIC",          // Define for static linking with libmongoc
+                "UTF8PROC_STATIC",        // Define for static linking with utf8proc
+                "BSON_STATIC",            // Define for static linking with libbson
+                "UTF8PROC_EXPORTS"        // Define related to utf8proc library
+            ],
+            "compilerPath": "/usr/bin/g++",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-x64",
+            "browse": {
+                "path": [
+                    "${workspaceFolder}/**",
+                    "/vcpkg/installed/x64-linux/include",
+                    "/vcpkg/installed/x64-linux/include/mongocxx/v_noabi",
+                    "/vcpkg/installed/x64-linux/include/bsoncxx/v_noabi"
+                ],
+                "limitSymbolsToIncludedHeaders": true
+            }
+        }
+    ],
+    "version": 4
+}
