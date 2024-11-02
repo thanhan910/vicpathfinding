@@ -136,6 +136,8 @@ struct Point {
 struct Segment {
     Point p1, p2;
 
+    int roadufi;
+
     Point midpoint() const {
         return {(p1.x + p2.x) / 2, (p1.y + p2.y) / 2};
     }
@@ -263,17 +265,44 @@ private:
     }
 };
 
+std::unordered_map<int, std::pair<double, double>> get_stops() {
+    pqxx::work txn(conn);
+
+    std::string query = "SELECT stop_id, stop_lat, stop_lon FROM vmtrans.stops";
+
+    pqxx::result result = txn.exec(query);
+
+    std::unordered_map<int, std::pair<double, double>> stops;
+
+    for (auto row : result) {
+        int id = row[0].as<int>();
+        double lat = row[1].as<double>();
+        double lon = row[2].as<double>();
+        // stops.emplace_back(id, std::make_pair(lat, lon));
+        stops[id] = std::make_pair(lon, lat);
+    }
+
+    return stops;
+}
+
 // Example usage
 int main() {
     // Define the boundary of the quadtree (whole plane or a limited area)
     std::unordered_map<int, std::vector<std::pair<double, double>>> roads = get_results();
 
+    begin = std::chrono::steady_clock::now();
+    std::unordered_map<int, std::pair<double, double>> stops = get_stops();
+    end = std::chrono::steady_clock::now();
+    std::cout << "Get stops: time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
     std::cout << "max p: " << max_p << std::endl;
 
     std::cout << "Generate segment" << std::endl;
 
-    std::vector<std::pair<std::pair<double, double>, std::pair<double, double>>> segments;
+    begin = std::chrono::steady_clock::now();
+
     std::vector<std::pair<double, double>> segments_points;
+    std::vector<std::pair<std::pair<std::pair<double, double>, std::pair<double, double>>, int>> segments;
     for (const auto& [id, road] : roads) {
         for (const auto& [x, y] : road) {
             segments_points.emplace_back(
@@ -286,13 +315,18 @@ int main() {
             double y1 = road[i].second;
             double x2 = road[i+1].first;
             double y2 = road[i+1].second;
-            segments.push_back({{x1, y1}, {x2, y2}});
+            segments.push_back({{{x1, y1}, {x2, y2}}, id});
             // segments.push_back({road[i], road[i+1]});
         }
     }
 
+    end = std::chrono::steady_clock::now();
+    std::cout << "Generate segment: time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
     Point queryPointOriginal = {144.10242311600007, -38.455264802999946};
     std::cout << "Query point: (" << std::to_string(queryPointOriginal.x) << ", " << std::to_string(queryPointOriginal.y) << ")" << std::endl;
+
+    begin = std::chrono::steady_clock::now();
 
     double x_min = std::numeric_limits<double>::infinity();
     double y_min = std::numeric_limits<double>::infinity();
@@ -306,30 +340,57 @@ int main() {
         y_max = std::max(y_max, y);
     }
 
+    end = std::chrono::steady_clock::now();
+
+    std::cout << "Find min max coords: time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
+    begin = std::chrono::steady_clock::now();
+
     // Quadtree::Boundary boundary = {0, 0, 100, 100};
     // Quadtree quadtree(boundary);
     Quadtree::Boundary boundary = {x_min, y_min, x_max, y_max};
     Quadtree quadtree(boundary);
 
+    end = std::chrono::steady_clock::now();
+
+    std::cout << "Create quadtree from boundary: time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
+    begin = std::chrono::steady_clock::now();
+
     for (int i = 0; i < segments.size(); i++) {
-        Segment segment = {{segments[i].first.first, segments[i].first.second},
-                           {segments[i].second.first, segments[i].second.second}};
+        double x1 = segments[i].first.first.first;
+        double y1 = segments[i].first.first.second;
+        double x2 = segments[i].first.second.first;
+        double y2 = segments[i].first.second.second;
+        int roadufi = segments[i].second;
+        Segment segment = {{x1, y1}, {x2, y2}, roadufi};
         quadtree.insert(segment);
     }
 
-    Point queryPointNew = {queryPointOriginal.x, queryPointOriginal.y};
+    end = std::chrono::steady_clock::now();
+
+    std::cout << "Insert segments: time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
+    int i = 0;
+    begin = std::chrono::steady_clock::now();
+    for (const auto& [id, stop] : stops) {
+        i++;
+        Point p = {stop.first, stop.second};
+        std::cout << "Stop: " << i << " " << id << " (" << stop.first << ", " << stop.second << ")" << std::endl;
+        double minDistance;
+        Segment nearestSegment = quadtree.nearestSegment(p, minDistance);
+        std::cout << "Nearest segment to (" << stop.first << ", " << stop.second << ") "
+                  << "is from (" << nearestSegment.p1.x << ", " << nearestSegment.p1.y << ") "
+                  << "to (" << nearestSegment.p2.x << ", " << nearestSegment.p2.y << ") "
+                  << "with distance: " << minDistance << " "
+                  << "roadufi: " << nearestSegment.roadufi << std::endl;
+    }
+    end = std::chrono::steady_clock::now();
+    std::cout << "Total stops: " << stops.size() << std::endl;
+    std::cout << "Find nearest segment: time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
     
-    std::cout << "Calculating nearest segment" << std::endl;
-    double minDistance;
-    Segment nearestSegment = quadtree.nearestSegment(queryPointNew, minDistance);
-
-    // Cast the result to string
-
-    std::cout << "Nearest segment to (" << std::to_string(queryPointNew.x) << ", " << std::to_string(queryPointNew.y) << ") "
-            //   << "is from (" << nearestSegment.p1.x << ", " << nearestSegment.p1.y << ") "
-            << "is from (" << std::to_string(nearestSegment.p1.x) << ", " << std::to_string(nearestSegment.p1.y) << ") "
-              << "to (" << std::to_string(nearestSegment.p2.x) << ", " << std::to_string(nearestSegment.p2.y) << ") "
-              << "with distance: " << std::to_string(minDistance) << std::endl;
-
     return 0;
+
+    // g++ r-tree.cpp -o mytest $(pkg-config --cflags --libs libpqxx libpq) && ./mytest
 }
