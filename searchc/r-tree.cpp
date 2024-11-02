@@ -369,7 +369,7 @@ int main() {
 
     end = std::chrono::steady_clock::now();
 
-    std::cout << "Insert segments: time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+    int64_t time_diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count();
 
     int i = 0;
     begin = std::chrono::steady_clock::now();
@@ -389,6 +389,7 @@ int main() {
     std::cout << "Total stops: " << stops.size() << std::endl;
     std::cout << "Find nearest segment: time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
+    std::cout << "Insert segments: time difference = " << time_diff << "[ms]" << std::endl;
     
     return 0;
 
