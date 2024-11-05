@@ -70,6 +70,31 @@ std::vector<std::string> parsePoints(const std::string &points_str)
     return points;
 }
 
+using CoordinateValue = std::string;
+using CoordinatePair = std::pair<CoordinateValue, CoordinateValue>;
+
+std::vector<CoordinatePair> parseGeomPoints(const pqxx::field &geom_points_sql)
+{
+    pqxx::array<std::string> geom_points_sql_array = geom_points_sql.as_sql_array<std::string>();
+    std::vector<CoordinatePair> geom_points;
+    for (size_t i = 0; i < geom_points_sql_array.size(); i++)
+    {
+        std::string point = geom_points_sql_array[i];
+        std::istringstream iss(point);
+        std::string token;
+        std::vector<std::string> elems;
+        while (std::getline(iss, token, ' '))
+        {
+            elems.push_back(token);
+        }
+        CoordinateValue point_lon_str = elems[0];
+        CoordinateValue point_lat_str = elems[1];
+        CoordinatePair point_pair(point_lon_str, point_lat_str);
+        geom_points.push_back(point_pair);
+    }
+    return geom_points;
+}
+
 std::size_t get_results()
 {
     pqxx::work txn(conn);
@@ -137,25 +162,8 @@ std::size_t get_results()
         // data.road_length_meters = row["road_length_meters"].as<double>();
 
         // Parse the geometry points
+        data.geom_points = parseGeomPoints(row["geom_points"]);
         
-        pqxx::array<std::string> geom_points_sql_array = row["geom_points"].as_sql_array<std::string>();
-        size_t size = geom_points_sql_array.size();        
-        for (size_t i = 0; i < size; i++)
-        {
-            std::string point = geom_points_sql_array[i];
-            std::istringstream iss(point);
-            std::string token;
-            std::vector<std::string> elems;
-            while (std::getline(iss, token, ' '))
-            {
-                elems.push_back(token);
-            }
-            std::string point_lon_str = elems[0];
-            std::string point_lat_str = elems[1];
-            std::pair<std::string, std::string> point_pair(point_lon_str, point_lat_str);
-            data.geom_points.push_back(point_pair);
-        }
-
         roads.push_back(data);
     }
 
@@ -230,5 +238,29 @@ int main()
 
 // SQL get tr_road_all: Time difference = 18287[ms]
 // Parse SQL result: Time difference = 63737[ms]
+// Count: 1234693
+// root@d46c569b1b86:/workspaces/vicpathfinding/searchc#
+
+
+// When lifted the geom_points parsing to a separate function:
+
+// SQL get tr_road_all: Time difference = 17322[ms]
+// Parse SQL result: Time difference = 75808[ms]
+// Count: 1234693
+
+// SQL get tr_road_all: Time difference = 14217[ms]
+// Parse SQL result: Time difference = 47573[ms]
+// Count: 1234693
+
+// SQL get tr_road_all: Time difference = 16709[ms]
+// Parse SQL result: Time difference = 41798[ms]
+// Count: 1234693
+
+// SQL get tr_road_all: Time difference = 14238[ms]
+// Parse SQL result: Time difference = 33345[ms]
+// Count: 1234693
+
+// SQL get tr_road_all: Time difference = 13691[ms]
+// Parse SQL result: Time difference = 32695[ms]
 // Count: 1234693
 // root@d46c569b1b86:/workspaces/vicpathfinding/searchc#
