@@ -323,8 +323,8 @@ int main() {
     end = std::chrono::steady_clock::now();
     std::cout << "Generate segment: time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
-    Point queryPointOriginal = {144.10242311600007, -38.455264802999946};
-    std::cout << "Query point: (" << std::to_string(queryPointOriginal.x) << ", " << std::to_string(queryPointOriginal.y) << ")" << std::endl;
+    // Point queryPointOriginal = {144.10242311600007, -38.455264802999946};
+    // std::cout << "Query point: (" << std::to_string(queryPointOriginal.x) << ", " << std::to_string(queryPointOriginal.y) << ")" << std::endl;
 
     begin = std::chrono::steady_clock::now();
 
