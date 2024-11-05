@@ -45,31 +45,6 @@ std::vector<std::vector<std::pair<double, double>>> parseWKTtoMultiLineString(co
     return multiLineString;
 }
 
-// Structure to store each row's data
-struct RoadData
-{
-    int ufi;
-    std::string ezi_road_name_label;
-    std::string direction_code;
-    double road_length_meters;
-    std::vector<std::pair<std::string, std::string>> geom_points;
-};
-
-// Function to parse points from a single string into a vector of points
-std::vector<std::string> parsePoints(const std::string &points_str)
-{
-    std::vector<std::string> points;
-    std::istringstream iss(points_str);
-    std::string point;
-
-    // Split by comma
-    while (std::getline(iss, point, ','))
-    {
-        points.push_back(point);
-    }
-    return points;
-}
-
 using CoordinateValue = std::string;
 using CoordinatePair = std::pair<CoordinateValue, CoordinateValue>;
 
@@ -95,22 +70,16 @@ std::vector<CoordinatePair> parseGeomPoints(const pqxx::field &geom_points_sql)
     return geom_points;
 }
 
+// Structure to store each row's data
+struct RoadData
+{
+    int ufi;
+    std::vector<std::pair<std::string, std::string>> geom_points;
+};
+
 std::size_t get_results()
 {
     pqxx::work txn(conn);
-
-    // Read table using the following query
-    // SELECT
-    //     ufi,
-    //     ezi_road_name_label,
-    //     direction_code,
-    //     road_length_meters,
-    //     STRING_TO_ARRAY(
-    //         REGEXP_REPLACE(ST_AsText(geom), '^MULTILINESTRING\\(\\(|\\)\\)$', '', 'g'),
-    //         ','
-    //     ) AS geom_points
-    // FROM
-    //     vmtrans.tr_road_all;
 
     std::string query = R"(
         SELECT 
@@ -134,12 +103,9 @@ std::size_t get_results()
     // Vector to store all rows
     std::vector<RoadData> roads;
 
-    size_t iter = 0;
-
     // Process each row in the result
     for (const auto &row : result)
     {
-        iter++;
         RoadData data;
         data.ufi = row["ufi"].as<int>();
         // // ezi_road_name_label can be null
