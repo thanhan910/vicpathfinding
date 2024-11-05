@@ -81,16 +81,110 @@ std::size_t get_results()
 {
     pqxx::work txn(conn);
 
-    std::string query = R"(
+/*
+-- This query gets the ufi and raw geom as a string
+-- This query takes about 4s - 5s to run
+SELECT 
+	ufi,
+	ST_AsText(geom) AS geom_points
+FROM 
+	vmtrans.tr_road_all
+WHERE 
+	direction_code IS NOT NULL;
+*/
+
+/*
+-- This query further removes the MULTILINESTRING(( )) wrapper from the geom string
+-- This query takes about 8s - 15s to run
+SELECT 
+    ufi,
+    REGEXP_REPLACE(ST_AsText(geom), '^MULTILINESTRING\(\(|\)\)$', '', 'g') AS geom_points
+FROM 
+    vmtrans.tr_road_all
+WHERE 
+    direction_code IS NOT NULL;
+*/
+
+/*
+-- This query further converts the geom string to a string array
+-- This query takes about 10s - 15s to run
+SELECT 
+    ufi,
+    STRING_TO_ARRAY(
+        REGEXP_REPLACE(ST_AsText(geom), '^MULTILINESTRING\(\(|\)\)$', '', 'g'),
+        ','
+    ) AS geom_points
+FROM 
+    vmtrans.tr_road_all
+WHERE 
+    direction_code IS NOT NULL;
+*/
+
+/*
+-- This query further splits each string in the array into an array of lon/lat pairs
+-- This query takes about 30s - 40s - 1 minute to run
+SELECT 
+    ufi,
+    ARRAY(
         SELECT 
-            ufi,
-            STRING_TO_ARRAY(
-                REGEXP_REPLACE(ST_AsText(geom), '^MULTILINESTRING\(\(|\)\)$', '', 'g'),
-                ','
-            ) AS geom_points
+            string_to_array(point_str, ' ')  -- Split into lon/lat and cast to float array
         FROM 
-            vmtrans.tr_road_all
-        WHERE direction_code IS NOT NULL;
+            unnest(
+                STRING_TO_ARRAY(
+                    REGEXP_REPLACE(ST_AsText(geom), '^MULTILINESTRING\(\(|\)\)$', '', 'g'), 
+                    ','
+                )
+            ) AS point_str
+    ) AS geom_points_split
+FROM 
+    vmtrans.tr_road_all
+WHERE 
+    direction_code IS NOT NULL;
+*/
+
+/*
+-- This query further splits the array of lon/lat pairs into segments
+-- This query took more than 1 hour in pgAdmin 4 and still not finished
+SELECT 
+    ufi,
+    ARRAY[
+        geom_points_split[i], 
+        geom_points_split[i + 1]
+    ] AS segment
+FROM 
+    vmtrans.tr_road_all,
+    LATERAL (
+        SELECT 
+            ARRAY(
+                SELECT 
+                    string_to_array(point_str, ' ')::float[]  -- Split into lon/lat and cast to float array
+                FROM 
+                    unnest(
+                        STRING_TO_ARRAY(
+                            REGEXP_REPLACE(ST_AsText(geom), '^MULTILINESTRING\(\(|\)\)$', '', 'g'), 
+                            ','
+                        )
+                    ) AS point_str
+            ) AS geom_points_split
+    ) AS points_array,
+    LATERAL generate_subscripts(points_array.geom_points_split, 1) AS i
+WHERE 
+    direction_code IS NOT NULL
+    AND i < array_length(points_array.geom_points_split, 1);  -- Ensure we don't go out of bounds
+*/
+
+
+    std::string query = R"(
+SELECT 
+    ufi,
+    STRING_TO_ARRAY(
+        REGEXP_REPLACE(ST_AsText(geom), '^MULTILINESTRING\(\(|\)\)$', '', 'g'),
+        ','
+    ) AS geom_points
+FROM 
+    vmtrans.tr_road_all
+WHERE 
+    direction_code IS NOT NULL;
     )";
 
     begin = std::chrono::steady_clock::now();
@@ -108,24 +202,6 @@ std::size_t get_results()
     {
         RoadData data;
         data.ufi = row["ufi"].as<int>();
-        // // ezi_road_name_label can be null
-        // if (row["ezi_road_name_label"].is_null())
-        // {
-        //     data.ezi_road_name_label = "";
-        // }
-        // else
-        // {
-        //     data.ezi_road_name_label = row["ezi_road_name_label"].as<std::string>();
-        // }
-        // if (row["direction_code"].is_null())
-        // {
-        //     data.direction_code = "";
-        // }
-        // else
-        // {
-        //     data.direction_code = row["direction_code"].as<std::string>();
-        // }
-        // data.road_length_meters = row["road_length_meters"].as<double>();
 
         // Parse the geometry points
         data.geom_points = parseGeomPoints(row["geom_points"]);
@@ -205,7 +281,7 @@ int main()
 // SQL get tr_road_all: Time difference = 18287[ms]
 // Parse SQL result: Time difference = 63737[ms]
 // Count: 1234693
-// root@d46c569b1b86:/workspaces/vicpathfinding/searchc#
+
 
 
 // When lifted the geom_points parsing to a separate function:
@@ -229,4 +305,3 @@ int main()
 // SQL get tr_road_all: Time difference = 13691[ms]
 // Parse SQL result: Time difference = 32695[ms]
 // Count: 1234693
-// root@d46c569b1b86:/workspaces/vicpathfinding/searchc#
