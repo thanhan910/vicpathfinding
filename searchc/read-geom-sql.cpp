@@ -116,7 +116,7 @@ std::size_t get_results()
     {
         iter++;
         RoadData data;
-        data.ufi = row[0].as<int>();
+        data.ufi = row["ufi"].as<int>();
         // // ezi_road_name_label can be null
         // if (row["ezi_road_name_label"].is_null())
         // {
@@ -138,7 +138,7 @@ std::size_t get_results()
 
         // Parse the geometry points
         
-        pqxx::array<std::string> geom_points_sql_array = row[1].as_sql_array<std::string>();
+        pqxx::array<std::string> geom_points_sql_array = row["geom_points"].as_sql_array<std::string>();
         size_t size = geom_points_sql_array.size();        
         for (size_t i = 0; i < size; i++)
         {
@@ -208,3 +208,27 @@ int main()
 // SQL get tr_road_all: Time difference = 30153[ms]
 // Parse SQL result: Time difference = 76110[ms]
 // Count: 1234693
+
+
+// When only ufi and geom_points are selected, and using string-based index for row["ufi"] and row["geom_points"]:
+
+// SQL get tr_road_all: Time difference = 29916[ms]
+// Parse SQL result: Time difference = 85360[ms]
+// Count: 1234693
+
+// SQL get tr_road_all: Time difference = 83995[ms]
+// Parse SQL result: Time difference = 283855[ms]
+// Count: 1234693
+
+// SQL get tr_road_all: Time difference = 17493[ms]
+// Parse SQL result: Time difference = 81744[ms]
+// Count: 1234693
+
+// SQL get tr_road_all: Time difference = 20468[ms]
+// Parse SQL result: Time difference = 62712[ms]
+// Count: 1234693
+
+// SQL get tr_road_all: Time difference = 18287[ms]
+// Parse SQL result: Time difference = 63737[ms]
+// Count: 1234693
+// root@d46c569b1b86:/workspaces/vicpathfinding/searchc#
