@@ -74,7 +74,7 @@ std::vector<CoordinatePair> parseGeomPoints(const pqxx::field &geom_points_sql)
 struct RoadData
 {
     int ufi;
-    std::vector<std::pair<std::string, std::string>> geom_points;
+    std::vector<CoordinatePair> geom_points;
 };
 
 std::size_t get_results()
