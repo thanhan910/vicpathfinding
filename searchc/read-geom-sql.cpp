@@ -90,9 +90,6 @@ std::size_t get_results()
     std::string query = R"(
         SELECT 
             ufi,
-            ezi_road_name_label,
-            direction_code,
-            road_length_meters,
             STRING_TO_ARRAY(
                 REGEXP_REPLACE(ST_AsText(geom), '^MULTILINESTRING\(\(|\)\)$', '', 'g'),
                 ','
@@ -119,29 +116,29 @@ std::size_t get_results()
     {
         iter++;
         RoadData data;
-        data.ufi = row["ufi"].as<int>();
-        // ezi_road_name_label can be null
-        if (row["ezi_road_name_label"].is_null())
-        {
-            data.ezi_road_name_label = "";
-        }
-        else
-        {
-            data.ezi_road_name_label = row["ezi_road_name_label"].as<std::string>();
-        }
-        if (row["direction_code"].is_null())
-        {
-            data.direction_code = "";
-        }
-        else
-        {
-            data.direction_code = row["direction_code"].as<std::string>();
-        }
-        data.road_length_meters = row["road_length_meters"].as<double>();
+        data.ufi = row[0].as<int>();
+        // // ezi_road_name_label can be null
+        // if (row["ezi_road_name_label"].is_null())
+        // {
+        //     data.ezi_road_name_label = "";
+        // }
+        // else
+        // {
+        //     data.ezi_road_name_label = row["ezi_road_name_label"].as<std::string>();
+        // }
+        // if (row["direction_code"].is_null())
+        // {
+        //     data.direction_code = "";
+        // }
+        // else
+        // {
+        //     data.direction_code = row["direction_code"].as<std::string>();
+        // }
+        // data.road_length_meters = row["road_length_meters"].as<double>();
 
         // Parse the geometry points
         
-        pqxx::array<std::string> geom_points_sql_array = row["geom_points"].as_sql_array<std::string>();
+        pqxx::array<std::string> geom_points_sql_array = row[1].as_sql_array<std::string>();
         size_t size = geom_points_sql_array.size();        
         for (size_t i = 0; i < size; i++)
         {
@@ -195,4 +192,19 @@ int main()
 
 // SQL get tr_road_all: Time difference = 38035[ms]
 // Parse SQL result: Time difference = 96299[ms]
+// Count: 1234693
+
+
+// When only ufi and geom_points are selected, and using number-based index for row[0] and row[1]:
+
+// SQL get tr_road_all: Time difference = 31092[ms]
+// Parse SQL result: Time difference = 98560[ms]
+// Count: 1234693
+
+// SQL get tr_road_all: Time difference = 30125[ms]
+// Parse SQL result: Time difference = 79909[ms]
+// Count: 1234693
+
+// SQL get tr_road_all: Time difference = 30153[ms]
+// Parse SQL result: Time difference = 76110[ms]
 // Count: 1234693
