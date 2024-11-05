@@ -45,7 +45,7 @@ std::vector<std::vector<std::pair<double, double>>>parseWKTtoMultiLineString(con
 std::size_t get_results() {
     pqxx::work txn(conn);
 
-    std::string query = "SELECT ufi, ST_AsText(geom) FROM vmtrans.tr_road_all";
+    std::string query = "SELECT ufi, ST_AsText(geom) FROM vmtrans.tr_road_all WHERE direction_code IS NOT NULL;";
 
     begin = std::chrono::steady_clock::now();
     pqxx::result result = txn.exec(query);
