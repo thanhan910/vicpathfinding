@@ -45,7 +45,7 @@ std::vector<std::vector<std::pair<double, double>>> parseWKTtoMultiLineString(co
     return multiLineString;
 }
 
-using CoordinateValue = std::string;
+using CoordinateValue = double;
 using CoordinatePair = std::pair<CoordinateValue, CoordinateValue>;
 
 std::vector<CoordinatePair> parseGeomPoints(const pqxx::field &geom_points_sql)
@@ -56,16 +56,9 @@ std::vector<CoordinatePair> parseGeomPoints(const pqxx::field &geom_points_sql)
     {
         std::string point = geom_points_sql_array[i];
         std::istringstream iss(point);
-        std::string token;
-        std::vector<std::string> elems;
-        while (std::getline(iss, token, ' '))
-        {
-            elems.push_back(token);
-        }
-        CoordinateValue point_lon_str = elems[0];
-        CoordinateValue point_lat_str = elems[1];
-        CoordinatePair point_pair(point_lon_str, point_lat_str);
-        geom_points.push_back(point_pair);
+        double x, y;
+        iss >> x >> y;
+        geom_points.emplace_back(x, y);
     }
     return geom_points;
 }
@@ -304,4 +297,34 @@ int main()
 
 // SQL get tr_road_all: Time difference = 13691[ms]
 // Parse SQL result: Time difference = 32695[ms]
+// Count: 1234693
+
+
+// When changed from std::string to double for the geom_points parsing:
+
+// SQL get tr_road_all: Time difference = 25233[ms]
+// Parse SQL result: Time difference = 42326[ms]
+// Count: 1234693
+
+// SQL get tr_road_all: Time difference = 24705[ms]
+// Parse SQL result: Time difference = 39925[ms]
+// Count: 1234693
+
+// SQL get tr_road_all: Time difference = 17628[ms]
+// Parse SQL result: Time difference = 38272[ms]
+// Count: 1234693
+
+
+// When reverted back to using string:
+
+// SQL get tr_road_all: Time difference = 24085[ms]
+// Parse SQL result: Time difference = 81767[ms]
+// Count: 1234693
+
+// SQL get tr_road_all: Time difference = 19245[ms]
+// Parse SQL result: Time difference = 51175[ms]
+// Count: 1234693
+
+// SQL get tr_road_all: Time difference = 22654[ms]
+// Parse SQL result: Time difference = 62005[ms]
 // Count: 1234693
