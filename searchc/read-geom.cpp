@@ -89,3 +89,24 @@ int main() {
 
     return 0;
 }
+
+
+// Time difference = 23782[ms]
+// Time difference = 31045[ms]
+// Count: 1235086
+
+// Time difference = 13698[ms]
+// Time difference = 13905[ms]
+// Count: 1235086
+
+// Time difference = 41031[ms]
+// Time difference = 39682[ms]
+// Count: 1235086
+
+// Time difference = 29496[ms]
+// Time difference = 29291[ms]
+// Count: 1235086
+
+// Time difference = 26900[ms]
+// Time difference = 33493[ms]
+// Count: 1235086
