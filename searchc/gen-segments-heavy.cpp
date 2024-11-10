@@ -186,9 +186,9 @@ SegmentsData gen_segments(const RoadMap &roads)
 #ifdef USE_STRING
 #ifdef USE_FINE_TUNED_ESTIMATION
             x_min = std::min(x_min, x);
-            y_min = std::min(y_min, y);
             x_max = std::max(x_max, x);
-            y_max = std::max(y_max, y);
+            y_min = std::max(y_min, y);
+            y_max = std::min(y_max, y);
 #else
             x_min = is_greater(x_min, x) ? x : x_min;
             y_min = is_greater(y_min, y) ? y : y_min;
