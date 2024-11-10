@@ -8,6 +8,49 @@
 #include <vector>
 #include <map>
 
+
+bool is_greater(const std::string &a, const std::string &b)
+{
+    bool a_is_negative = a[0] == '-';
+    bool b_is_negative = b[0] == '-';
+    size_t a_decimal = a.find('.');
+    size_t b_decimal = b.find('.');
+    if (a_is_negative && !b_is_negative)
+    {
+        return false;
+    }
+    else if (!a_is_negative && b_is_negative)
+    {
+        return true;
+    }
+    else if (a_is_negative && b_is_negative)
+    {
+        return !is_greater(a.substr(1), b.substr(1));
+    }
+    std::string a_integer_part = a_decimal == std::string::npos ? a : a.substr(0, a_decimal);
+    std::string a_decimal_part = a_decimal == std::string::npos ? "" : a.substr(a_decimal + 1);
+    std::string b_integer_part = b_decimal == std::string::npos ? b : b.substr(0, b_decimal);
+    std::string b_decimal_part = b_decimal == std::string::npos ? "" : b.substr(b_decimal + 1);
+
+    if (a_integer_part.size() != b_integer_part.size())
+    {
+        return a_integer_part.size() > b_integer_part.size();
+    }
+
+    else if (a_integer_part != b_integer_part)
+    {
+        return a_integer_part > b_integer_part;
+    }
+
+    else {
+        return a_decimal_part > b_decimal_part;
+    }
+
+    return false;
+}
+
+
+
 Number::Number(std::string integer_value, std::string decimal_value, bool is_negative) :
     integer_part(integer_value), decimal_part(decimal_value), is_negative(is_negative) {}
 
@@ -165,56 +208,8 @@ bool Number::operator==(const Number &other) const
     return integer_part == other.integer_part && decimal_part == other.decimal_part && is_negative == other.is_negative;
 }
 
-bool Number::operator>(const Number &other) const
-{
-    if (is_negative && !other.is_negative)
-    {
-        return false;
-    }
-    else if (!is_negative && other.is_negative)
-    {
-        return true;
-    }
-    else if (is_negative && other.is_negative)
-    {
-        return -(*this) < -other;
-    }
-
-    if (integer_part.size() > other.integer_part.size())
-    {
-        return true;
-    }
-    else if (integer_part.size() < other.integer_part.size())
-    {
-        return false;
-    }
-
-    for (int i = 0; i < integer_part.size(); i++)
-    {
-        if (integer_part[i] != other.integer_part[i])
-        {
-            return integer_part[i] > other.integer_part[i];
-        }
-    }
-
-    for (int i = 0; i < decimal_part.size(); i++)
-    {
-        if (i >= other.decimal_part.size())
-        {
-            return true;
-        }
-
-        if (decimal_part[i] > other.decimal_part[i])
-        {
-            return true;
-        }
-        else if (decimal_part[i] < other.decimal_part[i])
-        {
-            return false;
-        }
-    }
-
-    return false;
+bool Number::operator>(const Number &other) const {
+    return is_negative != other.is_negative ? is_negative : is_greater(to_string(), other.to_string());
 }
 
 bool Number::operator<(const Number &other) const

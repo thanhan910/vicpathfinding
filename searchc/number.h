@@ -4,6 +4,8 @@
 #include <string>
 #include <iostream>
 
+bool is_greater(const std::string &a, const std::string &b);
+
 class Number
 {
 
