@@ -155,16 +155,15 @@ SegmentsData gen_segments(const RoadMap &roads)
     begin = std::chrono::steady_clock::now();
 #ifdef USE_STRING
 #ifdef USE_FINE_TUNED_ESTIMATION
-    Component x_min = "-90.0";
-    Component y_min = "100.0";
-    Component x_max = "-10.0";
-    Component y_max = "360.0";
-
+    Component x_min = "-10.0";
+    Component y_min = "360.0";
+    Component x_max = "-90.0";
+    Component y_max = "100.0";
 #else
-    Component x_min = "-90";
-    Component y_min = "0";
-    Component x_max = "90";
-    Component y_max = "360";
+    Component x_min = "90";
+    Component y_min = "360";
+    Component x_max = "-90";
+    Component y_max = "0";
 #endif
 
 #else
