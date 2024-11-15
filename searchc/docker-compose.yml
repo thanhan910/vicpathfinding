@@ -1,0 +1,19 @@
+version: '3'
+
+services:
+  dev-container:
+    build: .
+    volumes:
+      - .:/workspace   # Mount the current directory to /workspace in the container
+      - /workspace/.vscode-server:/root/.vscode-server  # Persist VS Code server data
+    environment:
+      - POSTGRES_HOST=host.docker.internal
+      - POSTGRES_PORT=5432
+      - MONGO_HOST=host.docker.internal
+      - MONGO_PORT=27017
+    command: bash
+    ports:
+      - "5432:5432"   # Expose PostgreSQL port
+      - "27017:27017" # Expose MongoDB port
+    stdin_open: true  # Equivalent to `-i` to keep STDIN open
+    tty: true         # Equivalent to `-t` to allocate a pseudo-TTY
