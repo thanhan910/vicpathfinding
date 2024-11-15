@@ -347,4 +347,6 @@ int main() {
     }
 
     return 0;
+
+    // g++ main.cpp -o test $(pkg-config --cflags --libs libpqxx libpq libmongocxx-static) -I/vcpkg/installed/x64-linux/include -L/vcpkg/installed/x64-linux/lib
 }
