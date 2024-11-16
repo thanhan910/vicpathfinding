@@ -1,0 +1,11 @@
+version: '3'
+services:
+  python-app:
+    build: .
+    volumes:
+      - .:/app
+    environment:
+      - POSTGRES_HOST=host.docker.internal
+      - MONGO_HOST=host.docker.internal
+    ports:
+      - "8000:8000"
