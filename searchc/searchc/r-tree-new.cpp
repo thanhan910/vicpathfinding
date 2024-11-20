@@ -11,7 +11,8 @@
 #include <sstream>
 #include <fstream>
 
-// #define TEST_STOPS
+#define TEST_STOPS
+#define TEST_SINGLE_POINT
 
 
 std::chrono::steady_clock::time_point begin, end;
@@ -182,8 +183,6 @@ public:
     // Insert a segment
     bool insert(Segment segment)
     {
-        // std::cout << "Insert segment: " << segment.p1.x << " " << segment.p1.y << " " << segment.p2.x << " " << segment.p2.y << std::endl;
-
         if (!(boundary.intersects(segment)))
             return false;
 
@@ -214,78 +213,11 @@ public:
         return false;
     }
 
-    // Find the nearest segment to a point
-    std::tuple<Segment, std::vector<Quadtree *>> nearestSegment(const Point &point, double &minDistance) const
-    {
-        std::cout << "Quadtree: " << boundary.x_min << ", " << boundary.y_min << ", " << boundary.x_max << ", " << boundary.y_max << std::endl;
-        // minDistance = std::numeric_limits<double>::infinity();
-
-        if (divided)
-        {
-            std::vector<Quadtree *> container_quads;
-            std::vector<Quadtree *> non_container_quads;
-            for (Quadtree *child : children)
-            {
-                if (child->boundary.contains(point))
-                {
-                    container_quads.push_back(child);
-                }
-                else
-                {
-                    non_container_quads.push_back(child);
-                }
-            }
-            for (Quadtree *child : container_quads)
-            {
-                if (child->segment_count == 0)
-                {
-                    continue;
-                }
-                else
-                {
-                    auto [segment, quad] = child->nearestSegment(point, minDistance);
-                    quad.push_back(const_cast<Quadtree *>(this));
-                    return {segment, quad};
-                }
-            }
-            Segment nearestSegment;
-            std::vector<Quadtree *> quads;
-            for (Quadtree *child : non_container_quads)
-            {
-                if (child->segment_count == 0)
-                {
-                    continue;
-                }
-                auto [segment, quad] = child->nearestSegment(point, minDistance);
-                nearestSegment = segment;
-                quads = quad;
-            }
-            quads.push_back(const_cast<Quadtree *>(this));
-            return {nearestSegment, quads};
-        }
-
-        else
-        {
-            Segment nearestSegment;
-
-            std::vector<Quadtree *> quads;
-            // Segment nearest;
-            for (const Segment& segment : segments)
-            {
-                std::cout << segment.p1.x << "," << segment.p1.y << "," << segment.p2.x << "," << segment.p2.y << std::endl; 
-                std::cout << "Nearest segment: " << nearestSegment.p1.x << "," << nearestSegment.p1.y << "," << nearestSegment.p2.x << "," << nearestSegment.p2.y << std::endl;
-                double distance = segment.distanceToPoint(point);
-                if (distance < minDistance)
-                {
-                    minDistance = distance;
-                    // nearestSegment = segment; Reference move instead of copy
-                    nearestSegment = segment;
-                    std::cout << "Nearest segment chosen: " << nearestSegment.p1.x << "," << nearestSegment.p1.y << "," << nearestSegment.p2.x << "," << nearestSegment.p2.y << std::endl;
-                }
-            }
-            quads.push_back(const_cast<Quadtree *>(this));
-            return {nearestSegment, quads};
-        }
+    std::tuple<Segment, double, std::vector<Quadtree *>> find_nearest_segment(const Point &p) {
+        double min_distance = std::numeric_limits<double>::max();
+        Segment nearest_segment = {{0, 0}, {0, 0}, -1};
+        auto quads = nearestSegment(p, min_distance, nearest_segment);
+        return {nearest_segment, min_distance, quads};
     }
 
     // Return bounding box
@@ -343,6 +275,69 @@ private:
         segments.clear();
 
         divided = true;
+    }
+
+    // Find the nearest segment to a point
+    std::vector<Quadtree *> nearestSegment(const Point &point, double &minDistance, Segment& nearestSegment) const
+    {
+        if (divided)
+        {
+            std::vector<Quadtree *> container_quads;
+            std::vector<Quadtree *> non_container_quads;
+            for (Quadtree *child : children)
+            {
+                if (child->boundary.contains(point))
+                {
+                    container_quads.push_back(child);
+                }
+                else
+                {
+                    non_container_quads.push_back(child);
+                }
+            }
+            for (Quadtree *child : container_quads)
+            {
+                if (child->segment_count == 0)
+                {
+                    continue;
+                }
+                else
+                {
+                    auto quad = child->nearestSegment(point, minDistance, nearestSegment);
+                    quad.push_back(const_cast<Quadtree *>(this));
+                    return quad;
+                }
+            }
+            std::vector<Quadtree *> quads;
+            for (Quadtree *child : non_container_quads)
+            {
+                if (child->segment_count == 0)
+                {
+                    continue;
+                }
+                auto quad = child->nearestSegment(point, minDistance, nearestSegment);
+                quads = quad;
+            }
+            quads.push_back(const_cast<Quadtree *>(this));
+            return quads;
+        }
+
+        else
+        {
+            std::vector<Quadtree *> quads;
+            // Segment nearest;
+            for (const Segment& segment : segments)
+            {
+                double distance = segment.distanceToPoint(point);
+                if (distance < minDistance)
+                {
+                    minDistance = distance;
+                    nearestSegment = segment;
+                }
+            }
+            quads.push_back(const_cast<Quadtree *>(this));
+            return quads;
+        }
     }
 };
 
@@ -445,7 +440,7 @@ Quadtree gen_quadtree()
     // Read segments from a csv file
     begin = std::chrono::steady_clock::now();
 
-    std::ifstream file("segments.csv");
+    std::ifstream file("../local/segments.csv");
 
     std::string line;
 
@@ -489,7 +484,7 @@ int main()
 
     begin = std::chrono::steady_clock::now();
 
-    std::ofstream file("stops_nearest_segment.csv");
+    std::ofstream file("../local/stops_nearest_segment.csv");
 
     file << "stop_id,stop_lat,stop_lon,roadufi,segment_x1,segment_y1,segment_x2,segment_y2,distance_degree,distance_meter" << std::endl;
 
@@ -499,9 +494,7 @@ int main()
         i++;
         Point p = {stop.first, stop.second};
         // std::cout << "Stop: " << i << " " << id << " (" << stop.first << ", " << stop.second << ")" << std::endl;
-        double minDistance = std::numeric_limits<double>::infinity();
-        // Segment nearestSegment = quadtree.nearestSegment(p, minDistance);
-        auto [nearestSegment, quads] = quadtree.nearestSegment(p, minDistance);
+        auto [nearestSegment, minDistance, quads] = quadtree.find_nearest_segment(p);
         double distanceMeter = minDistance * 111139;
         file << id << "," << stop.first << "," << stop.second << "," << nearestSegment.roadufi << "," << nearestSegment.p1.x << "," << nearestSegment.p1.y << "," << nearestSegment.p2.x << "," << nearestSegment.p2.y << "," << minDistance << "," << distanceMeter << std::endl;
         if (nearestSegment.roadufi < 0)
@@ -521,12 +514,13 @@ int main()
 
 #endif
 
+#ifdef TEST_SINGLE_POINT
+
     begin = std::chrono::steady_clock::now();
 
-    // Point p = {144.866, -37.7512};
-    Point p = {145.183, -37.9948};
-    double minDistance = std::numeric_limits<double>::infinity();
-    auto [nearestSegment, quads] = quadtree.nearestSegment(p, minDistance);
+    Point p = {144.866, -37.7512};
+    // Point p = {145.183, -37.9948};
+    auto [nearestSegment, minDistance, quads] = quadtree.find_nearest_segment(p);
     end = std::chrono::steady_clock::now();
     std::cout << "Nearest segment to (" << p.x << ", " << p.y << ") "
               << "is from (" << nearestSegment.p1.x << ", " << nearestSegment.p1.y << ") "
@@ -550,9 +544,10 @@ int main()
 
     std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
     
+#endif
 
     return 0;
 
     // docker exec -it searchc-dev-container-1 /bin/bash
-    // g++ r-tree.cpp -o mytest $(pkg-config --cflags --libs libpqxx libpq) && ./mytest
+    // g++ r-tree-new.cpp -o local-exe $(pkg-config --cflags --libs libpqxx libpq) && ./local-exe
 }

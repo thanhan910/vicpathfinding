@@ -127,7 +127,7 @@ int main()
     // Write segments to a csv file
     begin = std::chrono::steady_clock::now();
 
-    std::ofstream segments_file("segments.csv");
+    std::ofstream segments_file("../local/segments.csv");
 
     segments_file << "roadufi,x1,y1,x2,y2\n";
 
@@ -208,7 +208,7 @@ int main()
     std::cout << "Write segments to a csv file: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
     // Save the min max boundary to a file
-    std::ofstream boundary_file("boundary.csv");
+    std::ofstream boundary_file("../local/boundary.csv");
     boundary_file << "x_min,y_min,x_max,y_max\n";
     boundary_file << x_min << "," << y_min << "," << x_max << "," << y_max << "\n";
     boundary_file.close();
@@ -220,5 +220,5 @@ int main()
 
     return 0;
 
-    // g++ gen-segments.cpp number.cpp -o mytest $(pkg-config --cflags --libs libpqxx libpq) && ./mytest
+    // g++ gen-segments.cpp number.cpp -o localexe $(pkg-config --cflags --libs libpqxx libpq) && ./localexe
 }
