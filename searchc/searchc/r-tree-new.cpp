@@ -241,6 +241,10 @@ public:
         return children;
     }
 
+    int getSegmentCount() const {
+        return segment_count;
+    }
+
 private:
     Boundary boundary;
     int capacity;
@@ -532,7 +536,7 @@ int main()
     for (auto it = quads.rbegin(); it != quads.rend(); ++it)
     {
         Quadtree *quad = *it;
-        std::cout << "Quad: " << quad->getBoundary().x_min << " " << quad->getBoundary().y_min << " " << quad->getBoundary().x_max << " " << quad->getBoundary().y_max << " " << quad->getSegments().size() << " " << quad->isDivided() << " " << quad->segment_count << std::endl;
+        std::cout << "Quad: " << quad->getBoundary().x_min << " " << quad->getBoundary().y_min << " " << quad->getBoundary().x_max << " " << quad->getBoundary().y_max << " " << quad->getSegments().size() << " " << quad->isDivided() << " " << quad->getSegmentCount() << std::endl;
         if (quad->getSegments().size() > 0)
         {
             for (auto seg : quad->getSegments())
