@@ -150,7 +150,6 @@ struct Segment
 class Quadtree
 {
 public:
-    int segment_count = 0;
     // Bounding box for each quadrant
     struct Boundary
     {
@@ -178,7 +177,7 @@ public:
     };
 
     Quadtree(Boundary boundary, int capacity = 4)
-        : boundary(boundary), capacity(capacity), divided(false) {}
+        : boundary(boundary), capacity(capacity), divided(false), segment_count(0) {}
 
     // Insert a segment
     bool insert(Segment segment)
@@ -246,8 +245,9 @@ private:
     Boundary boundary;
     int capacity;
     bool divided;
-    std::vector<Segment> segments;
     int midpoint_count;
+    int segment_count;
+    std::vector<Segment> segments;
 
     // Quadrants
     std::vector<Quadtree *> children;
