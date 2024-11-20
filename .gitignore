@@ -161,3 +161,6 @@ cython_debug/
 
 # Ignore all files with local- prefix
 local-*
+
+# Ignore all local/ folders
+local/
