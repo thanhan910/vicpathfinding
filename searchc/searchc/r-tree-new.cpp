@@ -13,7 +13,7 @@
 
 #define TEST_STOPS
 #define TEST_SINGLE_POINT
-
+// #define USE_MIDPOINT_COUNT
 
 std::chrono::steady_clock::time_point begin, end;
 
@@ -185,18 +185,22 @@ public:
         if (!(boundary.intersects(segment)))
             return false;
 
-        if (!divided) {
+        if (!divided)
+        {
             if ((segments.size() < capacity || (boundary.x_max - boundary.x_min) < 0.000001 || (boundary.y_max - boundary.y_min) < 0.000001))
             {
                 segments.push_back(segment);
+#ifdef USE_MIDPOINT_COUNT
                 if (boundary.contains(segment.midpoint()))
                 {
                     midpoint_count++;
                 }
+#endif
                 segment_count++;
                 return true;
             }
-            else {
+            else
+            {
                 subdivide();
             }
         }
@@ -212,7 +216,8 @@ public:
         return false;
     }
 
-    std::tuple<Segment, double, std::vector<Quadtree *>> find_nearest_segment(const Point &p) {
+    std::tuple<Segment, double, std::vector<Quadtree *>> find_nearest_segment(const Point &p)
+    {
         double min_distance = std::numeric_limits<double>::max();
         Segment nearest_segment = {{0, 0}, {0, 0}, -1};
         auto quads = nearestSegment(p, min_distance, nearest_segment);
@@ -241,7 +246,8 @@ public:
         return children;
     }
 
-    int getSegmentCount() const {
+    int getSegmentCount() const
+    {
         return segment_count;
     }
 
@@ -249,7 +255,9 @@ private:
     Boundary boundary;
     int capacity;
     bool divided;
+#ifdef USE_MIDPOINT_COUNT
     int midpoint_count;
+#endif
     int segment_count;
     std::vector<Segment> segments;
 
@@ -267,7 +275,7 @@ private:
         children.push_back(new Quadtree({boundary.x_min, y_mid, x_mid, boundary.y_max}, capacity));
         children.push_back(new Quadtree({x_mid, y_mid, boundary.x_max, boundary.y_max}, capacity));
 
-        for (const Segment& seg : segments)
+        for (const Segment &seg : segments)
         {
             for (Quadtree *child : children)
             {
@@ -282,7 +290,7 @@ private:
     }
 
     // Find the nearest segment to a point
-    std::vector<Quadtree *> nearestSegment(const Point &point, double &minDistance, Segment& nearestSegment) const
+    std::vector<Quadtree *> nearestSegment(const Point &point, double &minDistance, Segment &nearestSegment) const
     {
         if (divided)
         {
@@ -330,7 +338,7 @@ private:
         {
             std::vector<Quadtree *> quads;
             // Segment nearest;
-            for (const Segment& segment : segments)
+            for (const Segment &segment : segments)
             {
                 double distance = segment.distanceToPoint(point);
                 if (distance < minDistance)
@@ -485,7 +493,6 @@ int main()
     end = std::chrono::steady_clock::now();
     std::cout << "Get stops: time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
-
     begin = std::chrono::steady_clock::now();
 
     std::ofstream file("../local/stops_nearest_segment.csv");
@@ -547,7 +554,7 @@ int main()
     }
 
     std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
-    
+
 #endif
 
     return 0;
