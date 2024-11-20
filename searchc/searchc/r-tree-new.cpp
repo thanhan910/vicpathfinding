@@ -510,7 +510,7 @@ int main()
     file.close();
     end = std::chrono::steady_clock::now();
     // std::cout << "Total stops: " << stops.size() << std::endl;
-    std::cout << "Find nearest segment: time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+    std::cout << "Find stops' nearest segments: time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
 #endif
 
