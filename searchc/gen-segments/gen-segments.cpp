@@ -220,5 +220,5 @@ int main()
 
     return 0;
 
-    // g++ gen-segments.cpp number.cpp -o localexe $(pkg-config --cflags --libs libpqxx libpq) && ./localexe
+    // g++ gen-segments.cpp number.cpp -o local-exe $(pkg-config --cflags --libs libpqxx libpq) && ./local-exe
 }
