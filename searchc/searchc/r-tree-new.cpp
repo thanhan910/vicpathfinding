@@ -3,6 +3,8 @@
 #include <cmath>
 #include <limits>
 #include <stack>
+#include <queue>
+#include <iomanip>
 #include <chrono>
 #include <iostream>
 #include <pqxx/pqxx>
@@ -465,9 +467,9 @@ Quadtree gen_quadtree()
     while (file >> roadufi >> delimiter >> x1 >> delimiter >> y1 >> delimiter >> x2 >> delimiter >> y2)
     {
         i++;
-        if (i % 100000 == 0)
+        if (i % 108000 == 0)
         {
-            std::cout << "Batch: " << i / 100000 << std::endl;
+            std::cout << "Batch: " << i / 108000 << std::endl;
         }
         Segment segment = {{x1, y1}, {x2, y2}, roadufi};
         quadtree.insert(segment);
@@ -480,11 +482,55 @@ Quadtree gen_quadtree()
     return quadtree;
 }
 
+void store_quadtree(Quadtree *quadtree) {
+    begin = std::chrono::steady_clock::now();
+
+    std::ofstream quadfile("../local/quadtrees.csv");
+    quadfile << "id,x_min,y_min,x_max,y_max,segments_count,divided,parentid\n";
+
+    std::ofstream segmentsfile("../local/quadsegments.csv");
+    segmentsfile << "quadid,roadufi,x1,y1,x2,y2\n";
+
+    int quadid = 0;
+    std::queue<std::tuple<Quadtree *, int>> frontier;
+    frontier.push(std::make_tuple(quadtree, quadid));
+    while (!frontier.empty())
+    {
+        auto [quad, parentid] = frontier.front();
+        frontier.pop();
+        quadid++;
+        if (quadid % 130000 == 0)
+        {
+            std::cout << "Batch: " << quadid / 130000 << std::endl;
+        }
+        quadfile << quadid << ',' << std::setprecision(17) << quad->getBoundary().x_min << ',' << std::setprecision(17) << quad->getBoundary().y_min << ',' << std::setprecision(17) << quad->getBoundary().x_max << ',' << std::setprecision(17) << quad->getBoundary().y_max << ',' << std::setprecision(17) << quad->getSegmentCount() << ',' << std::setprecision(17) << quad->isDivided() << ',' << parentid << '\n';
+        for (Quadtree *child_quad : quad->getChildren())
+        {
+            frontier.push(std::make_tuple(child_quad, quadid));
+        }
+        if (quad->getSegments().size() > 0)
+        {
+            for (const Segment &seg : quad->getSegments())
+            {
+                segmentsfile << quadid << ',' << seg.roadufi << ',' << std::setprecision(17) << seg.p1.x << ',' << std::setprecision(17) << seg.p1.y << ',' << std::setprecision(17) << seg.p2.x << ',' << std::setprecision(17) << seg.p2.y << '\n';
+            }
+        }
+    }
+    quadfile.close();
+    segmentsfile.close();
+
+    end = std::chrono::steady_clock::now();
+
+    std::cout << "Store tree: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+} 
+
 // Example usage
 int main()
 {
 
     Quadtree quadtree = gen_quadtree();
+
+    store_quadtree(&quadtree);
 
 #ifdef TEST_STOPS
 
@@ -507,14 +553,10 @@ int main()
         // std::cout << "Stop: " << i << " " << id << " (" << stop.first << ", " << stop.second << ")" << std::endl;
         auto [nearestSegment, minDistance, quads] = quadtree.find_nearest_segment(p);
         double distanceMeter = minDistance * 111139;
-        file << id << "," << stop.first << "," << stop.second << "," << nearestSegment.roadufi << "," << nearestSegment.p1.x << "," << nearestSegment.p1.y << "," << nearestSegment.p2.x << "," << nearestSegment.p2.y << "," << minDistance << "," << distanceMeter << std::endl;
+        file << id << "," << std::setprecision(17) << stop.first << "," << std::setprecision(17) << stop.second << "," << std::setprecision(17) << stop.second << "," << nearestSegment.roadufi << "," << std::setprecision(17) << nearestSegment.p1.x << "," << std::setprecision(17) << nearestSegment.p1.y << "," << std::setprecision(17) << nearestSegment.p2.x << "," << std::setprecision(17) << nearestSegment.p2.y << "," << std::setprecision(17) << minDistance << "," << std::setprecision(17) << distanceMeter << std::endl;
         if (nearestSegment.roadufi < 0)
         {
-            std::cout << "Nearest segment to (" << stop.first << ", " << stop.second << ") "
-                      << "is from (" << nearestSegment.p1.x << ", " << nearestSegment.p1.y << ") "
-                      << "to (" << nearestSegment.p2.x << ", " << nearestSegment.p2.y << ") "
-                      << "with distance: " << minDistance << " "
-                      << "roadufi: " << nearestSegment.roadufi << std::endl;
+            std::cout << "Nearest segment to (" << stop.first << ", " << stop.second << ") " << "is from (" << std::setprecision(17) << nearestSegment.p1.x << ", " << std::setprecision(17) << nearestSegment.p1.y << ") " << "to (" << std::setprecision(17) << nearestSegment.p2.x << ", " << std::setprecision(17) << nearestSegment.p2.y << ") " << "with distance: " << std::setprecision(17) << minDistance << " " << "roadufi: " << nearestSegment.roadufi << std::endl;
         }
     }
 
@@ -533,17 +575,13 @@ int main()
     // Point p = {145.183, -37.9948};
     auto [nearestSegment, minDistance, quads] = quadtree.find_nearest_segment(p);
     end = std::chrono::steady_clock::now();
-    std::cout << "Nearest segment to (" << p.x << ", " << p.y << ") "
-              << "is from (" << nearestSegment.p1.x << ", " << nearestSegment.p1.y << ") "
-              << "to (" << nearestSegment.p2.x << ", " << nearestSegment.p2.y << ") "
-              << "with distance: " << minDistance << " "
-              << "roadufi: " << nearestSegment.roadufi << std::endl;
+    std::cout << "Nearest segment to (" << std::setprecision(17) << p.x << ", " << std::setprecision(17) << p.y << ") " << "is from (" << std::setprecision(17) << nearestSegment.p1.x << ", " << std::setprecision(17) << nearestSegment.p1.y << ") " << "to (" << std::setprecision(17) << nearestSegment.p2.x << ", " << std::setprecision(17) << nearestSegment.p2.y << ") " << "with distance: " << std::setprecision(17) << minDistance << " " << "roadufi: " << nearestSegment.roadufi << std::endl;
 
     // Traverse in reverse
     for (auto it = quads.rbegin(); it != quads.rend(); ++it)
     {
         Quadtree *quad = *it;
-        std::cout << "Quad: " << quad->getBoundary().x_min << " " << quad->getBoundary().y_min << " " << quad->getBoundary().x_max << " " << quad->getBoundary().y_max << " " << quad->getSegments().size() << " " << quad->isDivided() << " " << quad->getSegmentCount() << std::endl;
+        std::cout << "Quad: " << std::setprecision(17) << quad->getBoundary().x_min << " " << std::setprecision(17) << quad->getBoundary().y_min << " " << std::setprecision(17) << quad->getBoundary().x_max << " " << std::setprecision(17) << quad->getBoundary().y_max << " " << quad->getSegments().size() << " " << quad->isDivided() << " " << quad->getSegmentCount() << std::endl;
         if (quad->getSegments().size() > 0)
         {
             for (auto seg : quad->getSegments())
