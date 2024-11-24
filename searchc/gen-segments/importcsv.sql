@@ -24,12 +24,16 @@ CREATE TABLE boundary (
 -- COPY boundary FROM '/workspaces/vicpathfinding/gen-segments/boundary.csv' DELIMITER ',' CSV HEADER;
 
 -- "dbname=vic_db user=postgres password=postgres host=host.docker.internal port=5432
+
+/*
 -- Run this SQL using the following command:
--- export PGPASSWORD=postgres && psql -h host.docker.internal -U postgres -d vic_db -f /workspaces/vicpathfinding/gen-segments/importcsv.sql
--- export PGPASSWORD=postgres && psql -U postgres -h localhost -p 5432 -d vic_db -f importcsv.sql
+export PGPASSWORD=postgres && psql -h host.docker.internal -U postgres -d vic_db -f /workspaces/vicpathfinding/gen-segments/importcsv.sql
+export PGPASSWORD=postgres && psql -U postgres -h localhost -p 5432 -d vic_db -f importcsv.sql
 
 
 -- On Windows:
--- $PGPASSWORD = "postgres"
--- $env:PGPASSWORD = $PGPASSWORD
--- psql -U postgres -h localhost -p 5432 -d vic_db -f importcsv.sql
+$PGPASSWORD = "postgres"
+$env:PGPASSWORD = $PGPASSWORD
+psql -U postgres -h localhost -p 5432 -d vic_db -f importcsv.sql
+
+*/

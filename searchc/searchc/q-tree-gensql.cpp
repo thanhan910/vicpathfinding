@@ -486,10 +486,10 @@ void store_quadtree(Quadtree *quadtree) {
     begin = std::chrono::steady_clock::now();
 
     std::ofstream quadfile("../local/quadtrees.csv");
-    quadfile << "quadid,x_min,y_min,x_max,y_max,x_mid,y_mid,divided,segments_count,quad0,quad1,quad2,quad3\n";
+    quadfile << "quadid,x_min,y_min,x_max,y_max,x_mid,y_mid,divided,segments_count,quad0,quad1,quad2,quad3" << std::endl;
 
     std::ofstream segmentsfile("../local/quadsegments.csv");
-    segmentsfile << "quadid,roadufi,x1,y1,x2,y2\n";
+    segmentsfile << "quadid,roadufi,x1,y1,x2,y2" << std::endl;
     
     int quadcount = 0; 
     std::stack<std::tuple<Quadtree *, std::string>> frontier;
@@ -506,20 +506,27 @@ void store_quadtree(Quadtree *quadtree) {
         double x_mid = (quad->getBoundary().x_min + quad->getBoundary().x_max) / 2;
         double y_mid = (quad->getBoundary().y_min + quad->getBoundary().y_max) / 2;
         quadfile << quadid << ',' << std::setprecision(17) << quad->getBoundary().x_min << ',' << std::setprecision(17) << quad->getBoundary().y_min << ',' << std::setprecision(17) << quad->getBoundary().x_max << ',' << std::setprecision(17) << quad->getBoundary().y_max << ',' << std::setprecision(17) << x_mid << ',' << std::setprecision(17) << y_mid << ',' << quad->isDivided() << ',' << quad->getSegmentCount();
-        int i = 0;
-        for (Quadtree *child_quad : quad->getChildren())
+        if (quad->isDivided())
         {
-            frontier.push(std::make_tuple(child_quad, quadid + std::to_string(i)));
-            quadfile << ',' << child_quad->getSegmentCount();
-            i++;
-        }
-        quadfile << '\n';
-        if (quad->getSegments().size() > 0)
-        {
-            for (const Segment &seg : quad->getSegments())
+            int i = 0;
+            for (Quadtree *child_quad : quad->getChildren())
             {
-                segmentsfile << quadid << ',' << seg.roadufi << ',' << std::setprecision(17) << seg.p1.x << ',' << std::setprecision(17) << seg.p1.y << ',' << std::setprecision(17) << seg.p2.x << ',' << std::setprecision(17) << seg.p2.y << '\n';
+                frontier.push(std::make_tuple(child_quad, quadid + std::to_string(i)));
+                quadfile << ',' << child_quad->getSegmentCount();
+                i++;
             }
+        }
+        else 
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                quadfile << ',' << 0;
+            }
+        }
+        quadfile << std::endl;
+        for (const Segment &seg : quad->getSegments())
+        {
+            segmentsfile << quadid << ',' << seg.roadufi << ',' << std::setprecision(17) << seg.p1.x << ',' << std::setprecision(17) << seg.p1.y << ',' << std::setprecision(17) << seg.p2.x << ',' << std::setprecision(17) << seg.p2.y << std::endl;
         }
     }
     quadfile.close();
@@ -604,5 +611,5 @@ int main()
     return 0;
 
     // docker exec -it searchc-dev-container-1 /bin/bash
-    // g++ q-tree-heavy.cpp -o local-exe $(pkg-config --cflags --libs libpqxx libpq) && ./local-exe
+    // g++ q-tree-gensql.cpp -o local-exe $(pkg-config --cflags --libs libpqxx libpq) && ./local-exe
 }
