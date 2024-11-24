@@ -50,7 +50,7 @@ ENV PATH="${VCPKG_ROOT}:${PATH}"
 ENV PKG_CONFIG_PATH="${VCPKG_ROOT}/installed/x64-linux/lib/pkgconfig:${PKG_CONFIG_PATH}"
 
 # Install necessary packages
-RUN vcpkg install libpqxx mongo-cxx-driver boost-geometry
+RUN vcpkg install libpqxx mongo-cxx-driver boost-geometry boost-beast
 
 # Set the default command to bash
 CMD ["bash"]
@@ -63,3 +63,6 @@ CMD ["bash"]
 # echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/redis.list
 # sudo apt-get update
 # sudo apt-get install redis
+
+# Install Boost Beast
+# vcpkg install boost-beast

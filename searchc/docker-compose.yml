@@ -15,5 +15,6 @@ services:
     ports:
       - "5432:5432"   # Expose PostgreSQL port
       - "27017:27017" # Expose MongoDB port
+      - "8080:8080"   # Expose port 8080 for the dev container
     stdin_open: true  # Equivalent to `-i` to keep STDIN open
     tty: true         # Equivalent to `-t` to allocate a pseudo-TTY
