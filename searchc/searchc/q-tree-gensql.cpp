@@ -222,7 +222,7 @@ public:
     {
         double min_distance = std::numeric_limits<double>::max();
         Segment nearest_segment = {{0, 0}, {0, 0}, -1};
-        auto quads = nearestSegment(p, min_distance, nearest_segment);
+        auto quads = nearestSegmentOld(p, min_distance, nearest_segment);
         return {nearest_segment, min_distance, quads};
     }
 
@@ -292,7 +292,7 @@ private:
     }
 
     // Find the nearest segment to a point
-    std::vector<Quadtree *> nearestSegment(const Point &point, double &minDistance, Segment &nearestSegment) const
+    std::vector<Quadtree *> nearestSegmentOld(const Point &point, double &minDistance, Segment &nearestSegment) const
     {
         if (divided)
         {
@@ -317,7 +317,7 @@ private:
                 }
                 else
                 {
-                    auto quad = child->nearestSegment(point, minDistance, nearestSegment);
+                    auto quad = child->nearestSegmentOld(point, minDistance, nearestSegment);
                     quad.push_back(const_cast<Quadtree *>(this));
                     return quad;
                 }
@@ -329,7 +329,7 @@ private:
                 {
                     continue;
                 }
-                auto quad = child->nearestSegment(point, minDistance, nearestSegment);
+                auto quad = child->nearestSegmentOld(point, minDistance, nearestSegment);
                 quads = quad;
             }
             quads.push_back(const_cast<Quadtree *>(this));
