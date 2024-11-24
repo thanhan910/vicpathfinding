@@ -18,6 +18,9 @@
 #include <boost/asio.hpp>
 
 
+#define TEST_STOPS
+#define TEST_SINGLE_POINT
+
 
 namespace beast = boost::beast;
 namespace http = beast::http;
@@ -62,8 +65,7 @@ struct Segment
         return {(p1.x + p2.x) / 2, (p1.y + p2.y) / 2};
     }
 
-    // Compute the distance from a point to the line segment
-    double distanceToPoint(const Point &p) const
+    Point projectionPoint(const Point &p) const
     {
         // Project p onto the line segment, clamp to endpoints
         double A = p.x - p1.x;
@@ -91,10 +93,72 @@ struct Segment
             xx = p1.x + param * C;
             yy = p1.y + param * D;
         }
+        return {xx, yy};
+    }
 
-        double dx = p.x - xx;
-        double dy = p.y - yy;
-        return std::sqrt(dx * dx + dy * dy);
+    Point nearestPoint(const Point &p) const
+    {
+        Point projection = projectionPoint(p);
+        double x_min = std::min(p1.x, p2.x), x_max = std::max(p1.x, p2.x), y_min = std::min(p1.y, p2.y), y_max = std::max(p1.y, p2.y);
+        bool ge_x_min = projection.x >= x_min;
+        bool le_x_max = projection.x <= x_min;
+        bool ge_y_min = projection.y >= y_min;
+        bool le_y_max = projection.y <= y_min;
+        // Check if the closest point is on the line segment
+        if (ge_x_min && le_x_max && ge_y_min && le_y_max)
+        {
+            return projection;
+        }
+        else
+        {
+            if (p1.x == p2.x) {
+                if (p1.y < p2.y) {
+                    if (projection.y < p1.y) {
+                        return p1;
+                    }
+                    else {
+                        return p2;
+                    }
+                }
+                else {
+                    if (projection.y < p2.y) {
+                        return p1;
+                    }
+                    else {
+                        return p2;
+                    }
+                }
+            }
+            else if (p1.x < p2.x) {
+                if (projection.x < p1.x) {
+                    return p1;
+                }
+                else {
+                    return p2;
+                }
+            }
+            else {
+                if (projection.x < p2.x) {
+                    return p1;
+                }
+                else {
+                    return p2;
+                }
+            }
+        }
+    }
+
+    // Compute the distance from a point to the line segment
+    double perpendicularDistanceToPoint(const Point &p) const
+    {
+        Point projection = projectionPoint(p);
+        return p.distanceTo(projection);
+    }
+
+    double minDistanceToPoint(const Point &p) const
+    {
+        Point closest = nearestPoint(p);
+        return p.distanceTo(closest);
     }
 
     bool intersects(const double &x1, const double &y1, const double &x2, const double &y2, const bool &is_vertical) const
@@ -165,7 +229,7 @@ struct Boundary
         return (p.x >= x_min && p.x <= x_max && p.y >= y_min && p.y <= y_max);
     }
 
-    bool intersects_bpundary(const Boundary &other) const
+    bool intersects_boundary(const Boundary &other) const
     {
         return !(other.x_min > x_max || other.x_max < x_min ||
                  other.y_min > y_max || other.y_max < y_min);
@@ -273,7 +337,8 @@ public:
     {
         double min_distance = std::numeric_limits<double>::max();
         Segment nearest_segment = {{0, 0}, {0, 0}, -1};
-        auto quads = nearestSegmentOld(p, min_distance, nearest_segment);
+        Point nearest_point = {0, 0};
+        auto quads = nearestSegment(p, min_distance, nearest_segment, nearest_point);
         return {nearest_segment, min_distance, quads};
     }
 
@@ -343,7 +408,7 @@ private:
     }
 
     // Find the nearest segment to a point
-    std::vector<Quadtree *> nearestSegmentOld(const Point &point, double &minDistance, Segment &nearestSegment) const
+    std::vector<Quadtree *> nearestSegment(const Point &point, double &minDistance, Segment &nearestSegment, Point &nearestPoint) const
     {
         if (divided)
         {
@@ -368,7 +433,7 @@ private:
                 }
                 else
                 {
-                    auto quad = child->nearestSegmentOld(point, minDistance, nearestSegment);
+                    auto quad = child->nearestSegment(point, minDistance, nearestSegment, nearestPoint);
                     quad.push_back(const_cast<Quadtree *>(this));
                     return quad;
                 }
@@ -380,7 +445,7 @@ private:
                 {
                     continue;
                 }
-                auto quad = child->nearestSegmentOld(point, minDistance, nearestSegment);
+                auto quad = child->nearestSegment(point, minDistance, nearestSegment, nearestPoint);
                 quads = quad;
             }
             quads.push_back(const_cast<Quadtree *>(this));
@@ -393,73 +458,11 @@ private:
             // Segment nearest;
             for (const Segment &segment : segments)
             {
-                double distance = segment.distanceToPoint(point);
+                Point closest = segment.nearestPoint(point);
+                double distance = point.distanceTo(closest);
                 if (distance < minDistance)
                 {
-                    minDistance = distance;
-                    nearestSegment = segment;
-                }
-            }
-            quads.push_back(const_cast<Quadtree *>(this));
-            return quads;
-        }
-    }
-
-
-    // Find the nearest segment to a point
-    std::vector<Quadtree *> nearestSegmentNew(const Point &point, double &minDistance, Segment &nearestSegment) const
-    {
-        if (divided)
-        {
-            std::vector<Quadtree *> container_quads;
-            std::vector<Quadtree *> non_container_quads;
-            for (Quadtree *child : children)
-            {
-                if (child->boundary.contains(point))
-                {
-                    container_quads.push_back(child);
-                }
-                else
-                {
-                    non_container_quads.push_back(child);
-                }
-            }
-            for (Quadtree *child : container_quads)
-            {
-                if (child->segment_count == 0)
-                {
-                    continue;
-                }
-                else
-                {
-                    auto quad = child->nearestSegmentOld(point, minDistance, nearestSegment);
-                    quad.push_back(const_cast<Quadtree *>(this));
-                    return quad;
-                }
-            }
-            std::vector<Quadtree *> quads;
-            for (Quadtree *child : non_container_quads)
-            {
-                if (child->segment_count == 0)
-                {
-                    continue;
-                }
-                auto quad = child->nearestSegmentOld(point, minDistance, nearestSegment);
-                quads = quad;
-            }
-            quads.push_back(const_cast<Quadtree *>(this));
-            return quads;
-        }
-
-        else
-        {
-            std::vector<Quadtree *> quads;
-            // Segment nearest;
-            for (const Segment &segment : segments)
-            {
-                double distance = segment.distanceToPoint(point);
-                if (distance < minDistance)
-                {
+                    nearestPoint = closest;
                     minDistance = distance;
                     nearestSegment = segment;
                 }
@@ -483,10 +486,11 @@ struct CompareFrontierElement
 };
 
 
-std::tuple<Segment, double, std::vector<Quadtree *>> find_nearest_segment_frontier_full(const Point &p, Quadtree* root)
+std::tuple<Segment, Point, double, std::vector<Quadtree *>> find_nearest_segment_frontier_full(const Point &p, Quadtree* root)
 {
     double min_distance = std::numeric_limits<double>::max();
     Segment nearest_segment = {{0, 0}, {0, 0}, -1};
+    Point min_point = {0, 0};
 
     std::priority_queue<FrontierElement, std::vector<FrontierElement>, CompareFrontierElement> frontier; 
 
@@ -524,17 +528,19 @@ std::tuple<Segment, double, std::vector<Quadtree *>> find_nearest_segment_fronti
         {
             for (const Segment& segment : quad->getSegments())
             {
-                double distance = segment.distanceToPoint(p);
+                Point closest = segment.nearestPoint(p);
+                distance = p.distanceTo(closest);
                 if (distance < min_distance)
                 {
                     min_distance = distance;
                     nearest_segment = segment;
+                    min_point = closest;
                 }
             }
         }
     }
     
-    return {nearest_segment, min_distance, quads};
+    return {nearest_segment, min_point, min_distance, quads};
 }
 
 std::vector<Segment> get_segments()
@@ -688,6 +694,104 @@ std::optional<std::pair<double, double>> parse_query(const std::string_view& que
 }
 
 
+void test_quadtree(Quadtree * quadtree)
+{
+#ifdef TEST_STOPS
+
+    begin = std::chrono::steady_clock::now();
+    std::unordered_map<int, std::pair<double, double>> stops = get_stops();
+    end = std::chrono::steady_clock::now();
+    std::cout << "Get stops: time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
+    begin = std::chrono::steady_clock::now();
+
+    std::ofstream file("../local/stops_nearest_segment.csv");
+
+    file << "stop_id,stop_lat,stop_lon,roadufi,segment_x1,segment_y1,segment_x2,segment_y2,distance_degree,distance_meter" << std::endl;
+
+    int i = 0;
+    for (const auto &[id, stop] : stops)
+    {
+        i++;
+        Point p = {stop.first, stop.second};
+        // std::cout << "Stop: " << i << " " << id << " (" << stop.first << ", " << stop.second << ")" << std::endl;
+        // auto [nearestSegment, minDistance, quads] = quadtree.find_nearest_segment(p);
+        auto [nearestSegment, closestPoint, minDistance, quads] = find_nearest_segment_frontier_full(p, quadtree);
+        double distanceMeter = minDistance * 111139;
+        file << id << "," << std::setprecision(17) << stop.first << "," << std::setprecision(17) << stop.second << "," << std::setprecision(17) << stop.second << "," << nearestSegment.roadufi << "," << std::setprecision(17) << nearestSegment.p1.x << "," << std::setprecision(17) << nearestSegment.p1.y << "," << std::setprecision(17) << nearestSegment.p2.x << "," << std::setprecision(17) << nearestSegment.p2.y << "," << std::setprecision(17) << minDistance << "," << std::setprecision(17) << distanceMeter << std::endl;
+        if (nearestSegment.roadufi < 0)
+        {
+            std::cout << "Nearest segment to (" << stop.first << ", " << stop.second << ") " << "is from (" << std::setprecision(17) << nearestSegment.p1.x << ", " << std::setprecision(17) << nearestSegment.p1.y << ") " << "to (" << std::setprecision(17) << nearestSegment.p2.x << ", " << std::setprecision(17) << nearestSegment.p2.y << ") " << "with distance: " << std::setprecision(17) << minDistance << " " << "roadufi: " << nearestSegment.roadufi << std::endl;
+        }
+    }
+
+    file.close();
+    end = std::chrono::steady_clock::now();
+    // std::cout << "Total stops: " << stops.size() << std::endl;
+    std::cout << "Find stops' nearest segments: time difference = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
+#endif
+
+#ifdef TEST_SINGLE_POINT
+
+    Point p = {144.866, -37.7512};
+    // Point p = {145.183, -37.9948};
+    // Point p = {145.183, -37.9948};
+
+    begin = std::chrono::steady_clock::now();
+
+    auto [nearestSegment, minDistance, quads] = quadtree->find_nearest_segment(p);
+    end = std::chrono::steady_clock::now();
+    std::cout << "Nearest segment to (" << std::setprecision(17) << p.x << ", " << std::setprecision(17) << p.y << ") " << "is from (" << std::setprecision(17) << nearestSegment.p1.x << ", " << std::setprecision(17) << nearestSegment.p1.y << ") " << "to (" << std::setprecision(17) << nearestSegment.p2.x << ", " << std::setprecision(17) << nearestSegment.p2.y << ") " << "with distance: " << std::setprecision(17) << minDistance << " " << "roadufi: " << nearestSegment.roadufi << std::endl;
+
+    // Traverse in reverse
+    for (auto it = quads.rbegin(); it != quads.rend(); ++it)
+    {
+        Quadtree *quad = *it;
+        std::cout << "Quad: " << std::setprecision(17) << quad->getBoundary().x_min << " " << std::setprecision(17) << quad->getBoundary().y_min << " " << std::setprecision(17) << quad->getBoundary().x_max << " " << std::setprecision(17) << quad->getBoundary().y_max << " " << quad->getSegments().size() << " " << quad->isDivided() << " " << quad->getSegmentCount() << std::endl;
+        if (quad->getSegments().size() > 0)
+        {
+            for (auto seg : quad->getSegments())
+            {
+                std::cout << "Segment: " << seg.p1.x << " " << seg.p1.y << " " << seg.p2.x << " " << seg.p2.y << std::endl;
+            }
+        }
+    }
+
+    std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
+
+
+
+
+    begin = std::chrono::steady_clock::now();
+
+    
+    Point closestPoint;
+    std::tie(nearestSegment, closestPoint, minDistance, quads) = find_nearest_segment_frontier_full(p, quadtree);
+    end = std::chrono::steady_clock::now();
+    std::cout << "Nearest segment to (" << std::setprecision(17) << p.x << ", " << std::setprecision(17) << p.y << ") " << "is from (" << std::setprecision(17) << nearestSegment.p1.x << ", " << std::setprecision(17) << nearestSegment.p1.y << ") " << "to (" << std::setprecision(17) << nearestSegment.p2.x << ", " << std::setprecision(17) << nearestSegment.p2.y << ") " << "with distance: " << std::setprecision(17) << minDistance << " " << "roadufi: " << nearestSegment.roadufi << std::endl;
+
+    // Traverse in reverse
+    for (auto it = quads.begin(); it != quads.end(); ++it)
+    {
+        Quadtree *quad = *it;
+        std::cout << "Quad: " << std::setprecision(17) << quad->getBoundary().x_min << " " << std::setprecision(17) << quad->getBoundary().y_min << " " << std::setprecision(17) << quad->getBoundary().x_max << " " << std::setprecision(17) << quad->getBoundary().y_max << " " << quad->getSegments().size() << " " << quad->isDivided() << " " << quad->getSegmentCount() << std::endl;
+        if (quad->getSegments().size() > 0)
+        {
+            for (auto seg : quad->getSegments())
+            {
+                std::cout << "Segment: " << seg.p1.x << " " << seg.p1.y << " " << seg.p2.x << " " << seg.p2.y << std::endl;
+            }
+        }
+    }
+
+    std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
+#endif
+}
+
+
 
 // HTTP request handler
 void handle_request(Quadtree* quadtree, http::request<http::string_body>& req, http::response<http::string_body>& res) {
@@ -720,10 +824,10 @@ void handle_request(Quadtree* quadtree, http::request<http::string_body>& req, h
         double x = params->first, y = params->second;
 
         Point p = {x, y};
-        auto [nearestSegment, minDistance, quads] = find_nearest_segment_frontier_full(p, quadtree);
+        auto [nearestSegment, closestPoint, minDistance, quads] = find_nearest_segment_frontier_full(p, quadtree);
         res.result(http::status::ok);
         res.set(http::field::content_type, "application/json");
-        res.body() = "{\"roadufi\": " + std::to_string(nearestSegment.roadufi) + ", \"distance\": " + std::to_string(minDistance) + ", \"x1\": " + std::to_string(nearestSegment.p1.x) + ", \"y1\": " + std::to_string(nearestSegment.p1.y) + ", \"x2\": " + std::to_string(nearestSegment.p2.x) + ", \"y2\": " + std::to_string(nearestSegment.p2.y) + "}";
+        res.body() = "{\"roadufi\": " + std::to_string(nearestSegment.roadufi) + ", \"distance\": " + std::to_string(minDistance) + ", \"x1\": " + std::to_string(nearestSegment.p1.x) + ", \"y1\": " + std::to_string(nearestSegment.p1.y) + ", \"x2\": " + std::to_string(nearestSegment.p2.x) + ", \"y2\": " + std::to_string(nearestSegment.p2.y) + ", \"px\": " + std::to_string(closestPoint.x) + ", \"py\": " + std::to_string(closestPoint.y) + "}";
     }
 
     else {
@@ -759,6 +863,8 @@ void do_session(tcp::socket socket, Quadtree* quadtree) {
 int main() {
     // Generate the quadtree
     Quadtree quadtree = gen_quadtree();
+
+    test_quadtree(&quadtree);
 
     // Define the server endpoint
     const auto address = net::ip::make_address("0.0.0.0");

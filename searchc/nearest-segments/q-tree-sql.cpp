@@ -56,7 +56,7 @@ struct Segment
     }
 
     // Compute the distance from a point to the line segment
-    double distanceToPoint(const Point &p) const
+    double perpendicularDistanceToPoint(const Point &p) const
     {
         // Project p onto the line segment, clamp to endpoints
         double A = p.x - p1.x;
@@ -344,7 +344,7 @@ std::pair<Segment, double> find_nearest_segment(Point p)
             std::vector<Segment> segments = get_segments_from_sql_table(quadtree.quadid);
             for (Segment segment : segments)
             {
-                double segment_distance = segment.distanceToPoint(p);
+                double segment_distance = segment.perpendicularDistanceToPoint(p);
                 if (segment_distance < min_distance)
                 {
                     min_distance = segment_distance;
@@ -510,7 +510,7 @@ std::pair<Segment, double> find_nearest_segment_map(Point p, QuadNode *root)
             std::vector<Segment> segments = get_segments_from_sql_table(quadtree.quadid);
             for (Segment segment : segments)
             {
-                double segment_distance = segment.distanceToPoint(p);
+                double segment_distance = segment.perpendicularDistanceToPoint(p);
                 if (segment_distance < min_distance)
                 {
                     min_distance = segment_distance;

@@ -143,7 +143,7 @@ struct Segment {
     }
 
     // Compute the distance from a point to the line segment
-    double distanceToPoint(const Point& p) const {
+    double perpendicularDistanceToPoint(const Point& p) const {
         // Project p onto the line segment, clamp to endpoints
         double A = p.x - p1.x;
         double B = p.y - p1.y;
@@ -214,7 +214,7 @@ public:
         minDistance = std::numeric_limits<double>::infinity();
 
         for (const Segment& segment : segments) {
-            double distance = segment.distanceToPoint(point);
+            double distance = segment.perpendicularDistanceToPoint(point);
             if (distance < minDistance) {
                 minDistance = distance;
                 nearest = segment;

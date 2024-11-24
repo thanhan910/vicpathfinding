@@ -55,7 +55,7 @@ struct Segment
     }
 
     // Compute the distance from a point to the line segment
-    double distanceToPoint(const Point &p) const
+    double perpendicularDistanceToPoint(const Point &p) const
     {
         // Project p onto the line segment, clamp to endpoints
         double A = p.x - p1.x;
@@ -157,7 +157,7 @@ struct Boundary
         return (p.x >= x_min && p.x <= x_max && p.y >= y_min && p.y <= y_max);
     }
 
-    bool intersects_bpundary(const Boundary &other) const
+    bool intersects_boundary(const Boundary &other) const
     {
         return !(other.x_min > x_max || other.x_max < x_min ||
                  other.y_min > y_max || other.y_max < y_min);
@@ -391,7 +391,7 @@ private:
             // Segment nearest;
             for (const Segment &segment : segments)
             {
-                double distance = segment.distanceToPoint(point);
+                double distance = segment.perpendicularDistanceToPoint(point);
                 if (distance < minDistance)
                 {
                     minDistance = distance;
@@ -455,7 +455,7 @@ private:
             // Segment nearest;
             for (const Segment &segment : segments)
             {
-                double distance = segment.distanceToPoint(point);
+                double distance = segment.perpendicularDistanceToPoint(point);
                 if (distance < minDistance)
                 {
                     minDistance = distance;
@@ -522,7 +522,7 @@ std::tuple<Segment, double, std::vector<Quadtree *>> find_nearest_segment_fronti
         {
             for (const Segment& segment : quad->getSegments())
             {
-                double distance = segment.distanceToPoint(p);
+                double distance = segment.perpendicularDistanceToPoint(p);
                 if (distance < min_distance)
                 {
                     min_distance = distance;
@@ -662,12 +662,8 @@ Quadtree gen_quadtree()
     return quadtree;
 }
 
-// Example usage
-int main()
+void test_quadtree(Quadtree * quadtree)
 {
-
-    Quadtree quadtree = gen_quadtree();
-
 #ifdef TEST_STOPS
 
     begin = std::chrono::steady_clock::now();
@@ -688,7 +684,7 @@ int main()
         Point p = {stop.first, stop.second};
         // std::cout << "Stop: " << i << " " << id << " (" << stop.first << ", " << stop.second << ")" << std::endl;
         // auto [nearestSegment, minDistance, quads] = quadtree.find_nearest_segment(p);
-        auto [nearestSegment, minDistance, quads] = find_nearest_segment_frontier_full(p, &quadtree);
+        auto [nearestSegment, minDistance, quads] = find_nearest_segment_frontier_full(p, quadtree);
         double distanceMeter = minDistance * 111139;
         file << id << "," << std::setprecision(17) << stop.first << "," << std::setprecision(17) << stop.second << "," << std::setprecision(17) << stop.second << "," << nearestSegment.roadufi << "," << std::setprecision(17) << nearestSegment.p1.x << "," << std::setprecision(17) << nearestSegment.p1.y << "," << std::setprecision(17) << nearestSegment.p2.x << "," << std::setprecision(17) << nearestSegment.p2.y << "," << std::setprecision(17) << minDistance << "," << std::setprecision(17) << distanceMeter << std::endl;
         if (nearestSegment.roadufi < 0)
@@ -708,10 +704,11 @@ int main()
 
     Point p = {144.866, -37.7512};
     // Point p = {145.183, -37.9948};
+    // Point p = {145.183, -37.9948};
 
     begin = std::chrono::steady_clock::now();
 
-    auto [nearestSegment, minDistance, quads] = quadtree.find_nearest_segment(p);
+    auto [nearestSegment, minDistance, quads] = quadtree->find_nearest_segment(p);
     end = std::chrono::steady_clock::now();
     std::cout << "Nearest segment to (" << std::setprecision(17) << p.x << ", " << std::setprecision(17) << p.y << ") " << "is from (" << std::setprecision(17) << nearestSegment.p1.x << ", " << std::setprecision(17) << nearestSegment.p1.y << ") " << "to (" << std::setprecision(17) << nearestSegment.p2.x << ", " << std::setprecision(17) << nearestSegment.p2.y << ") " << "with distance: " << std::setprecision(17) << minDistance << " " << "roadufi: " << nearestSegment.roadufi << std::endl;
 
@@ -738,9 +735,8 @@ int main()
     begin = std::chrono::steady_clock::now();
 
     
-    // Point p = {145.183, -37.9948};
-    // auto [nearestSegment, minDistance, quads] = find_nearest_segment_frontier_full(p, &quadtree);
-    std::tie(nearestSegment, minDistance, quads) = find_nearest_segment_frontier_full(p, &quadtree);
+    
+    std::tie(nearestSegment, minDistance, quads) = find_nearest_segment_frontier_full(p, quadtree);
     end = std::chrono::steady_clock::now();
     std::cout << "Nearest segment to (" << std::setprecision(17) << p.x << ", " << std::setprecision(17) << p.y << ") " << "is from (" << std::setprecision(17) << nearestSegment.p1.x << ", " << std::setprecision(17) << nearestSegment.p1.y << ") " << "to (" << std::setprecision(17) << nearestSegment.p2.x << ", " << std::setprecision(17) << nearestSegment.p2.y << ") " << "with distance: " << std::setprecision(17) << minDistance << " " << "roadufi: " << nearestSegment.roadufi << std::endl;
 
@@ -761,6 +757,15 @@ int main()
     std::cout << "Total time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
 #endif
+}
+
+// Example usage
+int main()
+{
+
+    Quadtree quadtree = gen_quadtree();
+
+    test_quadtree(&quadtree);
 
     return 0;
 
