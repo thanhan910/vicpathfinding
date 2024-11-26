@@ -4,7 +4,7 @@ services:
   dev-container:
     build: .
     volumes:
-      - .:/workspace   # Mount the current directory to /workspace in the container
+      - ..:/workspace   # Mount the current directory to /workspace in the container
       - /workspace/.vscode-server:/root/.vscode-server  # Persist VS Code server data
     environment:
       - POSTGRES_HOST=host.docker.internal
